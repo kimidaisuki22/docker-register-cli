@@ -1,0 +1,25 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg-configuration.schema.json",
+  "default-registry": {
+    "kind": "git",
+    "baseline": "3265c187c74914aa5569b75355badebfdbab7987",
+    "reference": "master",
+    "repository": "https://github.com/microsoft/vcpkg"
+  },
+  "registries": [
+    {
+      "kind": "git",
+      "baseline": "68df8f2d904b1a8bdbf4e6576a1424646e845ce5",
+      "reference": "main",
+      "repository": "https://github.com/kimidaisuki22/vcpkg-ports",
+      "packages": [
+        "crc32",
+        "dirsystem",
+        "win-manifests",
+        "cy",
+        "stb-impl",
+        "asynccurl"
+      ]
+    }
+  ]
+}
