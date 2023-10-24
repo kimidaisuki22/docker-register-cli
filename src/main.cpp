@@ -1,5 +1,6 @@
 #include <fmt/format.h>
 #include <memory>
+#include <vector>
 #define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_TRACE
 #include <asynccurl/executor.h>
 #include <asynccurl/request.h>
@@ -14,21 +15,21 @@
 #include <string>
 
 #include <nlohmann/json.hpp>
-template <typename T> struct Awaitable_task {
-public:
-  Awaitable_task(Task<T> &request, asynccurl::Executor &executor)
-      : slot_(request), executor_(&executor) {}
-  bool await_ready() const noexcept { return false; }
-  void await_suspend(std::coroutine_handle<> handle) {
-    slot_.set_on_finished([handle] { handle(); });
-    slot_.resume();
-  }
+// template <typename T> struct Awaitable_task {
+// public:
+//   Awaitable_task(Task<T> &request, asynccurl::Executor &executor)
+//       : slot_(request), executor_(&executor) {}
+//   bool await_ready() const noexcept { return false; }
+//   void await_suspend(std::coroutine_handle<> handle) {
+//     slot_.set_on_finished([handle] { handle(); });
+//     slot_.resume();
+//   }
 
-  T await_resume() const noexcept { return slot_.get_result(); }
+//   T await_resume() const noexcept { return slot_.get_result(); }
 
-  Task<T> &slot_;
-  asynccurl::Executor *executor_;
-};
+//   Task<T> &slot_;
+//   asynccurl::Executor *executor_;
+// };
 
 struct Get_resume_handle {
 public:
@@ -66,7 +67,7 @@ Task<nlohmann::json> fetch_json(std::string url,
   //  "task fetch json " + url};
   std::string str;
 
-  str = co_await Awaitable_task{sub_task, executor};
+  str = co_await std::move(sub_task);
 
   // co_await std::suspend_always{};
   nlohmann::json json;
@@ -76,6 +77,16 @@ Task<nlohmann::json> fetch_json(std::string url,
   }
   co_return json;
 }
+Task<std::vector<std::string>> fetch_image_tags(std::string url,
+                                                asynccurl::Executor &executor) {
+  auto json = co_await fetch_json(url, executor);
+  std::vector<std::string> tags;
+  for (auto tag : json["tags"]) {
+    tags.push_back(tag);
+  }
+  co_return tags;
+}
+
 int main() {
   asynccurl::Executor executor;
   // spdlog::set_level(spdlog::level::debug);
@@ -84,22 +95,23 @@ int main() {
   std::string repos_url = fmt::format("{}/v2/_catalog", base_url);
   // spawn a task
   auto task = fetch_json(repos_url, executor);
-  task.set_on_finished([&task, &executor, base_url]() {
-    auto result = task.get_result();
-    std::cout << result.dump(2) << '\n';
+  auto fetch_task = [](auto &exe, auto &t, std::string base_url) -> Task<char> {
+    auto result = co_await std::move(t);
+    SPDLOG_INFO("response json: {}", result.dump(2));
+
     for (auto repo : result["repositories"]) {
       auto link =
-          fmt::format("{}/v2/{}/tags/list", base_url, repo.get<std::string>());
+          fmt::format("{}/v2/{}/tags/list", base_url, std::string(repo));
       // break;
-      auto t =
-          std::make_shared<Task<nlohmann::json>>(fetch_json(link, executor));
-      t->set_on_finished([link, t] {
-        SPDLOG_INFO("{} done: {}", link, t->get_result().dump());
-      });
-      asynccurl::spawn(executor, *t);
+      auto tags = co_await fetch_image_tags(link, exe);
+      for (auto t : tags) {
+        SPDLOG_INFO("repo: {} tag: {}", std::string(repo), t);
+      }
     }
-  });
-  asynccurl::spawn(executor, task);
+    co_return '0';
+  }(executor, task, base_url);
+  asynccurl::spawn(executor, fetch_task);
+
   executor.run();
   return 0;
 }
