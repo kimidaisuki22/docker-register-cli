@@ -2,14 +2,14 @@
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg-configuration.schema.json",
   "default-registry": {
     "kind": "git",
-    "baseline": "3265c187c74914aa5569b75355badebfdbab7987",
+    "baseline": "0e47c1985273129e4d0ee52ff73bed9125555de8",
     "reference": "master",
     "repository": "https://github.com/microsoft/vcpkg"
   },
   "registries": [
     {
       "kind": "git",
-      "baseline": "68df8f2d904b1a8bdbf4e6576a1424646e845ce5",
+      "baseline": "9fb6815f52925b097726ab6e06b764508f88663b",
       "reference": "main",
       "repository": "https://github.com/kimidaisuki22/vcpkg-ports",
       "packages": [
