@@ -87,29 +87,51 @@ Task<std::vector<std::string>> fetch_image_tags(std::string url,
   co_return tags;
 }
 
-int main() {
+int main(int argc, char **argv) {
   asynccurl::Executor executor;
-  // spdlog::set_level(spdlog::level::debug);
+  spdlog::set_level(spdlog::level::off);
   std::string domain = "xxx";
   std::string base_url = fmt::format("https://{}:5000", domain);
   std::string repos_url = fmt::format("{}/v2/_catalog", base_url);
+
+  enum actions { list, search };
+  actions action = list;
+  std::string search_name;
+  if (argc > 2 && argv[1] == std::string("search")) {
+    search_name = argv[2];
+    action = search;
+  }
+
   // spawn a task
   auto task = fetch_json(repos_url, executor);
-  auto fetch_task = [](auto &exe, auto &t, std::string base_url) -> Task<char> {
+  auto fetch_task = [](auto &exe, auto &t,
+                                          std::string base_url,actions action, std::string search_name) -> Task<char> {
     auto result = co_await std::move(t);
     SPDLOG_INFO("response json: {}", result.dump(2));
 
     for (auto repo : result["repositories"]) {
       auto link =
           fmt::format("{}/v2/{}/tags/list", base_url, std::string(repo));
+      if (action == list) {
+        std::cout << std::string(repo) << "\n";
+      }else if (action == search) {
+        if (std::string(repo).find(search_name) != std::string::npos) {
+            std::cout << fmt::format("{}\n", std::string(repo));
+        }
+      }
       // break;
       auto tags = co_await fetch_image_tags(link, exe);
       for (auto t : tags) {
         SPDLOG_INFO("repo: {} tag: {}", std::string(repo), t);
+        if (action == search) {
+          if (std::string(repo).find(search_name) != std::string::npos) {
+            std::cout << fmt::format("\t{}\n", t);
+          }
+        }
       }
     }
     co_return '0';
-  }(executor, task, base_url);
+  }(executor, task, base_url,action,search_name);
   asynccurl::spawn(executor, fetch_task);
 
   executor.run();
